@@ -585,5 +585,26 @@ Quick architecture slide. MCP server, GitLab API, JIRA CLI, Bedrock Claude, loca
 1. **GitLab token scope:** What permissions does the hackathon sandbox token grant? Need `api`, `read_repository`, `write_repository` at minimum.
 2. **Bedrock model:** Which Claude model is available in the AWS sandbox? Sonnet preferred for speed, Opus for quality.
 3. **Nielsen GitLab namespace:** Confirm we can create repos under `nielsen-media/cloud-enablement/aws-hack-ai-thon/teams/`.
-4. **JIRA write access:** Can the `jira` CLI create issues and transition states, or read-only?
+4. ~~**JIRA write access:**~~ ✅ CONFIRMED — Full read/write. Create, assign, comment, transition states all work.
 5. **Rate limits:** GitLab API rate limits for the hackathon token?
+
+## JIRA CLI Capabilities (Confirmed)
+
+```bash
+# Read
+jira issue list -q "project=N1ADS AND status='In Progress'"
+jira issue view N1ADS-1234
+jira project list
+
+# Write — all confirmed working
+jira issue create -p N1ADS -t Bug -s "Summary" -b "Description" -y High -l "label1"
+jira issue assign N1ADS-1234 "garvit.jain@nielsen.com"
+jira issue move N1ADS-1234 "In Progress"           # Transition states
+jira issue move N1ADS-1234 "Done" --resolution "Fixed"
+jira issue comment add N1ADS-1234 "Comment body"
+```
+
+## Reference Links
+
+- [AI Enablement / Glean Info](https://sites.google.com/nielsen.com/ai-enablement/glean?authuser=0)
+- [Hack-AI-Thon '26 Info](https://sites.google.com/nielsen.com/ai-enablement/hack-ai-thon26?authuser=0)
