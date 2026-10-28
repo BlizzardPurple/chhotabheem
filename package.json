@@ -1,0 +1,13 @@
+{
+  "name": "project-sync",
+  "version": "0.1.0",
+  "description": "Cross-tool mismatch detection & resolution for developer workflows",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  }
+}
