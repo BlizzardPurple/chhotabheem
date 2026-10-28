@@ -4,9 +4,16 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { scan } from "./tools/scan.js";
 import { reconcile } from "./tools/reconcile.js";
-import * as notebook from "./notebook/notebook.js";
 import * as gitlab from "./clients/gitlab.js";
 import * as jira from "./clients/jira.js";
+
+// Pick notebook backend: S3 if bucket is configured, local otherwise
+let notebook;
+if (process.env.PROJECTSYNC_S3_BUCKET) {
+  notebook = await import("./notebook/s3-notebook.js");
+} else {
+  notebook = await import("./notebook/notebook.js");
+}
 
 const server = new McpServer({
   name: "project-sync",
