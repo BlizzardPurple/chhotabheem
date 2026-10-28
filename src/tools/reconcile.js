@@ -1,133 +1,65 @@
-import * as jira from "../clients/jira.js";
-import * as gdrive from "../clients/gdrive.js";
+import * as defaultJira from "../clients/jira.js";
+import * as defaultGitlab from "../clients/gitlab.js";
+import * as defaultDrive from "../clients/gdrive.js";
 
-/**
- * Reconcile a single mismatch. Returns a description of what was done.
- */
-export async function reconcile(mismatch) {
-  switch (mismatch.rule) {
-    case "MR merged, ticket still open":
-      return reconcileRule1(mismatch);
-    case "Pipeline failed, no bug ticket":
-      return reconcileRule2(mismatch);
+const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/** Build a reviewable plan. Constructing a plan NEVER writes to a provider. */
+export async function reconcile(m, { jira = defaultJira, gitlab = defaultGitlab, gdrive = defaultDrive } = {}) {
+  const d = m.details;
+  const base = { mismatch_id: m.id, needs_approval: true, warning: "Review the evidence and your team's workflow before approving." };
+  switch (m.rule) {
+    case "MR merged, ticket still open": {
+      const target = process.env.JIRA_DONE_STATUS || "Done";
+      return { ...base, action: "jira_transition", description: `Transition ${d.jira_key} to ${target}`,
+        warning: "A merge is not proof of deployment or acceptance. Confirm all work and your team's definition of Done.",
+        payload: { issue: d.jira_key, from: d.jira_status, to: target, evidence: d.mr_url },
+        execute: async () => {
+          if (defaultJira.isDone(await jira.viewIssue(d.jira_key))) return { message: `${d.jira_key} is already complete.`, changed: false };
+          await jira.moveIssue(d.jira_key, target, `Approved in ProjectSync. Evidence: ${d.mr_url}`);
+          return { message: `${d.jira_key} transitioned to ${target}.`, changed: true };
+        } };
+    }
+    case "Pipeline failed, no bug ticket": {
+      const project = d.jira_project || process.env.JIRA_PROJECT;
+      if (!project) throw new Error("Set JIRA_PROJECT before creating an issue.");
+      const summary = `Pipeline #${d.pipeline_id} failed — ${d.failed_job}`;
+      const body = `Pipeline: ${d.pipeline_url}\nFailed job: ${d.failed_job}\n\nLog excerpt (evidence, not a root-cause diagnosis):\n${d.log_excerpt || "Unavailable"}\n\nProjectSync reference: ${d.project_path || ""}/pipeline/${d.pipeline_id}`;
+      return { ...base, action: "jira_create", description: `Create a Bug in ${project} for pipeline #${d.pipeline_id}`,
+        payload: { project, type: "Bug", summary, body },
+        execute: async () => {
+          const existing = await jira.findPipelineIssues(project, d.pipeline_url, d.pipeline_id);
+          if (existing.length) return { message: `A pipeline reference already exists (${existing.map(i => i.key).join(", ")}); no ticket created.`, changed: false };
+          const key = await jira.createIssue(project, "Bug", summary, body);
+          return { message: `Created ${key}.`, changed: true, issue: key };
+        } };
+    }
     case "Review pending too long":
-      return reconcileRule3(mismatch);
-    case "No release notes":
-      return reconcileRule4(mismatch);
-    case "Branch with no MR":
-      return reconcileRule5(mismatch);
-    default:
-      return `Unknown rule: ${mismatch.rule}. Cannot reconcile.`;
+      return { ...base, action: "review_summary", needs_approval: false,
+        description: `Prepare a review summary for MR !${d.mr_iid}`,
+        payload: { text: `${d.title}\nOpen ${d.days_open} days. Reviewers: ${d.reviewers}.\n${d.mr_url}` },
+        execute: async () => ({ message: `Review summary prepared for MR !${d.mr_iid}. No notification was sent; the finding remains open.`, changed: false }) };
+    case "No release notes": {
+      const title = d.release_notes_prefix || `${d.project_path || d.project_id} — Release Notes`;
+      const html = `<h1>${escapeHtml(title)}</h1><p>Merge summaries; deployment status has not been verified.</p><ul>${String(d.mr_summaries || "").split("\n").map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ul>`;
+      return { ...base, action: "gdrive_create", description: `Create Google Doc: ${title}`,
+        payload: { title, html }, execute: async () => {
+          const doc = await gdrive.createDoc(title, html);
+          return { message: `Created release notes: ${doc.url}`, changed: true, url: doc.url };
+        } };
+    }
+    case "Branch with no MR": {
+      const title = `Draft: ${d.last_commit || d.branch}`;
+      const description = `Review work on ${d.branch}. Created after approval in ProjectSync.`;
+      return { ...base, action: "gitlab_create_mr", description: `Create draft MR from ${d.branch} to ${d.default_branch}`,
+        payload: { project: d.project_id, source: d.branch, target: d.default_branch, expected_source_sha: d.branch_sha, title, description },
+        execute: async () => {
+          const existing = await gitlab.listMRs(d.project_id, { state: "opened", source_branch: d.branch });
+          if (existing.length) return { message: `MR !${existing[0].iid} already exists.`, changed: false, url: existing[0].web_url };
+          const mr = await gitlab.createMR(d.project_id, d.branch, d.default_branch, title, description);
+          return { message: `Created draft MR !${mr.iid}.`, changed: true, url: mr.web_url };
+        } };
+    }
+    default: throw new Error(`Unsupported finding: ${m.rule}`);
   }
-}
-
-/** Rule 1: Transition JIRA ticket to Done. NEEDS APPROVAL — returns proposal. */
-async function reconcileRule1(m) {
-  const { jira_key, mr_iid } = m.details;
-  return {
-    action: "jira_transition",
-    needs_approval: true,
-    description: `Transition ${jira_key} to "Done" (MR !${mr_iid} is merged)`,
-    execute: async () => {
-      await jira.moveIssue(jira_key, "Done", `Auto-resolved by ProjectSync: MR !${mr_iid} is merged.`);
-      return `✅ ${jira_key} transitioned to Done.`;
-    },
-  };
-}
-
-/** Rule 2: Create JIRA bug ticket from pipeline failure. AUTO — non-destructive. */
-async function reconcileRule2(m) {
-  const { pipeline_id, pipeline_url, failed_job, log_excerpt } = m.details;
-
-  // The log_excerpt is passed to Kiro's model for analysis.
-  // For TEST_MODE or when model isn't available, create ticket with raw log.
-  const bugBody = [
-    `## Pipeline Failure Report`,
-    ``,
-    `**Pipeline:** [#${pipeline_id}](${pipeline_url})`,
-    `**Failed Job:** ${failed_job}`,
-    ``,
-    `### Log Excerpt`,
-    "```",
-    log_excerpt || "No log available",
-    "```",
-    ``,
-    `*Created by ProjectSync — cross-tool mismatch detection agent.*`,
-  ].join("\n");
-
-  return {
-    action: "jira_create",
-    needs_approval: false,
-    description: `Create bug ticket for pipeline #${pipeline_id} failure`,
-    execute: async () => {
-      const result = await jira.createIssue(
-        process.env.JIRA_PROJECT || "N1AREF",
-        "Bug",
-        `Pipeline #${pipeline_id} failed — ${failed_job}`,
-        bugBody,
-        "High"
-      );
-      return `✅ Bug ticket created: ${result}`;
-    },
-  };
-}
-
-/** Rule 3: Send review summary. AUTO — informational only. */
-async function reconcileRule3(m) {
-  const { mr_iid, mr_url, days_open, reviewers, title } = m.details;
-  return {
-    action: "notification",
-    needs_approval: false,
-    description: `Review summary for MR !${mr_iid}: "${title}" — open ${days_open} days, reviewers: ${reviewers}`,
-    execute: async () => {
-      return `📋 Review summary prepared. MR !${mr_iid}: "${title}" has been open ${days_open} days. Reviewers: ${reviewers}. URL: ${mr_url}`;
-    },
-  };
-}
-
-/** Rule 4: Generate release notes Google Doc. AUTO — non-destructive. */
-async function reconcileRule4(m) {
-  const { mr_summaries, mr_count } = m.details;
-
-  const html = [
-    `<html><body>`,
-    `<h1>Release Notes — ${new Date().toISOString().slice(0, 10)}</h1>`,
-    `<p>Auto-generated by ProjectSync from ${mr_count} merged MRs.</p>`,
-    `<h2>Changes</h2>`,
-    `<ul>`,
-    ...(mr_summaries || "").split("\n").map(line => `<li>${line}</li>`),
-    `</ul>`,
-    `<hr/>`,
-    `<p style="color:#888;font-size:10pt;">Generated by ProjectSync — cross-tool mismatch detection agent.</p>`,
-    `</body></html>`,
-  ].join("\n");
-
-  return {
-    action: "gdrive_create",
-    needs_approval: false,
-    description: `Generate release notes doc from ${mr_count} merged MRs`,
-    execute: async () => {
-      const doc = await gdrive.createDoc(
-        `Release Notes — ${new Date().toISOString().slice(0, 10)}`,
-        html
-      );
-      return `✅ Release notes created: ${doc.url}`;
-    },
-  };
-}
-
-/** Rule 5: Propose MR creation. NEEDS APPROVAL. */
-async function reconcileRule5(m) {
-  const { branch, last_commit } = m.details;
-  const jiraKey = jira.extractJiraKey(branch);
-  const title = jiraKey ? `${jiraKey}: ${last_commit}` : last_commit;
-
-  return {
-    action: "gitlab_create_mr",
-    needs_approval: true,
-    description: `Create draft MR for branch "${branch}" with title: "${title}"`,
-    execute: async () => {
-      return `📝 Draft MR proposed: "${title}" from branch ${branch}. Use GitLab to create it.`;
-    },
-  };
 }

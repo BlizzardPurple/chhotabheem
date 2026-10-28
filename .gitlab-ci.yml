@@ -1,0 +1,10 @@
+image: node:24-bookworm
+stages: [test]
+checks:
+  stage: test
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends python3
+    - npm ci
+  script:
+    - npm test
+    - npm audit --omit=dev

@@ -1,0 +1,65 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "ProjectSync synthetic hackathon demo: HTTP API, Node.js Lambda and scoped logs.",
+  "Parameters": {
+    "ArtifactBucket": { "Type": "String" },
+    "ArtifactKey": { "Type": "String" }
+  },
+  "Resources": {
+    "FunctionLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-demo" }, "RetentionInDays": 3 }
+    },
+    "ExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow", "Principal": { "Service": "lambda.amazonaws.com" }, "Action": "sts:AssumeRole" }] },
+        "Policies": [{
+          "PolicyName": "WriteOwnLogs",
+          "PolicyDocument": { "Version": "2012-10-17", "Statement": [{ "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": { "Fn::GetAtt": ["FunctionLogs", "Arn"] } }] }
+        }]
+      }
+    },
+    "DemoFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": { "Fn::Sub": "${AWS::StackName}-demo" },
+        "Description": "Public synthetic demo only; no GitLab, Jira or Drive credentials.",
+        "Runtime": "nodejs24.x",
+        "Architectures": ["arm64"],
+        "Handler": "deploy/lambda.handler",
+        "Code": { "S3Bucket": { "Ref": "ArtifactBucket" }, "S3Key": { "Ref": "ArtifactKey" } },
+        "Role": { "Fn::GetAtt": ["ExecutionRole", "Arn"] },
+        "MemorySize": 256,
+        "Timeout": 10,
+        "Environment": { "Variables": { "NODE_ENV": "production", "PROJECTSYNC_DEMO": "true", "PROJECTSYNC_MODE": "demo", "PROJECTSYNC_PUBLIC_DEMO": "true", "PROJECTSYNC_HOME": "/tmp/projectsync" } },
+        "Tags": [{ "Key": "Project", "Value": "ProjectSync" }, { "Key": "Mode", "Value": "SyntheticDemo" }]
+      }
+    },
+    "HttpApi": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": { "Name": { "Fn::Sub": "${AWS::StackName}-demo" }, "ProtocolType": "HTTP" }
+    },
+    "Integration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": { "ApiId": { "Ref": "HttpApi" }, "IntegrationType": "AWS_PROXY", "IntegrationUri": { "Fn::GetAtt": ["DemoFunction", "Arn"] }, "PayloadFormatVersion": "2.0", "TimeoutInMillis": 12000 }
+    },
+    "DefaultRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": { "ApiId": { "Ref": "HttpApi" }, "RouteKey": "$default", "AuthorizationType": "NONE", "Target": { "Fn::Join": ["/", ["integrations", { "Ref": "Integration" }]] } }
+    },
+    "DefaultStage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": { "ApiId": { "Ref": "HttpApi" }, "StageName": "$default", "AutoDeploy": true, "DefaultRouteSettings": { "ThrottlingBurstLimit": 10, "ThrottlingRateLimit": 5 } }
+    },
+    "InvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": { "FunctionName": { "Ref": "DemoFunction" }, "Action": "lambda:InvokeFunction", "Principal": "apigateway.amazonaws.com", "SourceArn": { "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*" } }
+    }
+  },
+  "Outputs": {
+    "DemoUrl": { "Value": { "Fn::GetAtt": ["HttpApi", "ApiEndpoint"] } },
+    "FunctionName": { "Value": { "Ref": "DemoFunction" } },
+    "LogGroup": { "Value": { "Ref": "FunctionLogs" } }
+  }
+}

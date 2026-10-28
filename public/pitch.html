@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProjectSync · Hackathon presentation</title>
+  <link rel="stylesheet" href="pitch.css">
+  <script src="pitch.js" defer></script>
+</head>
+<body>
+  <header class="deck-header">
+    <a class="brand" href="/" aria-label="Open ProjectSync console"><span class="brand-icon">↗</span> ProjectSync</a>
+    <span class="team">CTRL+AUTOMATE <span>·</span> HACK-AI-THON ’26</span>
+    <a class="demo-link" href="/">Open demo ↗</a>
+  </header>
+  <main id="deck" aria-label="ProjectSync presentation">
+    <section class="slide" id="slide-1" aria-labelledby="title-1" data-title="The problem">
+      <div class="slide-top"><span class="eyebrow">01 / THE PROBLEM</span><span class="tag">DEVELOPER WORKFLOW</span></div>
+      <h1 id="title-1">One piece of work.<br>Two different stories.</h1>
+      <p class="lead">The code is merged. The ticket is still in progress.<br>Someone has to notice, investigate, and close the loop.</p>
+      <div class="comparison">
+        <article class="source-card"><div class="source-label"><span class="provider gitlab">G</span> GitLab</div><h2>MR !108</h2><p>SHOP-241 · Fix checkout rounding</p><span class="state merged">Merged</span></article>
+        <div class="disagreement" aria-label="States disagree"><span>≠</span><small>same work</small></div>
+        <article class="source-card"><div class="source-label"><span class="provider jira">J</span> Jira</div><h2>SHOP-241</h2><p>Fix checkout rounding</p><span class="state progress">In Progress</span></article>
+      </div>
+      <p class="footnote">Illustrative synthetic records. A merge alone does not prove deployment or acceptance.</p>
+      <aside class="speaker-note"><strong>Say · 25 seconds</strong> “Our first user is the developer preparing a handoff or release update. Each tool is useful, but their states can disagree. We built a small workflow to find that disagreement and help its owner review the next step.”</aside>
+    </section>
+    <section class="slide" id="slide-2" aria-labelledby="title-2" data-title="The workflow" hidden>
+      <div class="slide-top"><span class="eyebrow">02 / THE PRODUCT</span><span class="tag">EVIDENCE BEFORE ACTION</span></div>
+      <h1 id="title-2">Find the gap.<br>Let the owner close it.</h1>
+      <p class="lead">ProjectSync compares source facts, prepares an exact action,<br>and checks what changed after approval.</p>
+      <ol class="flow">
+        <li><span class="step">1</span><h2>Observe</h2><p>Read GitLab and Jira.<br>Show facts and coverage.</p></li>
+        <li><span class="step">2</span><h2>Propose</h2><p>Preview the target<br>and exact payload.</p></li>
+        <li><span class="step">3</span><h2>Approve</h2><p>The owner reviews.<br>Fresh evidence is checked.</p></li>
+        <li><span class="step">4</span><h2>Verify</h2><p>Apply, rescan,<br>inspect the history.</p></li>
+      </ol>
+      <div class="callout"><strong>A scoped engineering handoff tool</strong><span>Merged work · failed pipelines · pending review · release notes · branches without MRs</span></div>
+      <aside class="speaker-note"><strong>Say · 30 seconds</strong> “We focus on one outcome: an observable disagreement becomes a reviewed action with a result we can inspect. Missing access stays visible. Our checks are signals for review, not permission to change someone’s workflow.”</aside>
+    </section>
+    <section class="slide" id="slide-3" aria-labelledby="title-3" data-title="The demonstration" hidden>
+      <div class="slide-top"><span class="eyebrow">03 / SHOW THE PRODUCT</span><span class="tag">NAME THE MODE BEFORE DEMOING</span></div>
+      <h1 id="title-3">The proof is<br>the before and after.</h1>
+      <div class="demo-grid">
+        <div><p class="lead">Show the MR and ticket.<br>Review the proposed transition.<br>Approve, then show the new state.</p><a class="button" href="/">Switch to the running console ↗</a><p class="footnote">For AI orchestration, show the same workflow through your MCP host.</p></div>
+        <div class="demo-proof"><span class="eyebrow">SYNTHETIC REHEARSAL EXAMPLE</span><div class="count-change"><strong>5</strong><span>→</span><strong>4</strong></div><p>findings after the approved ticket repair</p><div class="proof-line"><span>✓</span> Source evidence</div><div class="proof-line"><span>✓</span> Exact action preview</div><div class="proof-line"><span>✓</span> Fresh scan and activity record</div></div>
+      </div>
+      <p class="boundary"><strong>Live demo:</strong> use your authorized sandbox and show the real source records. <strong>Sample demo:</strong> clearly labeled fixtures; no external writes.</p>
+      <aside class="speaker-note"><strong>Do · 90 seconds</strong> Open the console. State the mode. Scan, expand evidence, preview the first finding, and approve only after checking the criteria. Show the updated source and activity log. In sample mode, the count drops from five to four. In live mode, show the actual result and explain any incomplete checks. Return here using the browser’s back button.</aside>
+    </section>
+    <section class="slide" id="slide-4" aria-labelledby="title-4" data-title="Engineering and AI" hidden>
+      <div class="slide-top"><span class="eyebrow">04 / HOW IT WORKS</span><span class="tag">SMALL MODULES · EXPLICIT CONTRACTS</span></div>
+      <h1 id="title-4">AI explains.<br>Code checks. People decide.</h1>
+      <div class="architecture" aria-label="Architecture: assistant or browser to shared workflow to provider adapters">
+        <div><strong>MCP host / browser</strong><span>Conversation or direct controls</span></div><span class="arrow">→</span><div class="central"><strong>Shared workflow</strong><span>Rules · preview · approval · history</span></div><span class="arrow">→</span><div><strong>Provider adapters</strong><span>GitLab · Jira · optional Drive</span></div>
+      </div>
+      <div class="lessons">
+        <article><span>01</span><h2>Outage ≠ no findings</h2><p>Report incomplete coverage.<br>Test the unavailable-source case.</p></article>
+        <article><span>02</span><h2>Approval can go stale</h2><p>Expire it, bind it to the plan,<br>and re-read before writing.</p></article>
+        <article><span>03</span><h2>Retries can duplicate work</h2><p>Replay completed tokens.<br>Surface uncertain outcomes.</p></article>
+      </div>
+      <p class="footnote">AI comes from the MCP host. No built-in LLM or Glean connection. Retry coordination is process-local, not distributed exactly-once execution.</p>
+      <aside class="speaker-note"><strong>Say · 45 seconds</strong> “As early-career engineers, our key lesson was that missing evidence must not look like success. We separated adapters, rules, and policy so those failure cases are testable. The host assistant can explain findings. Deterministic code checks source facts; the human owns the decision.”</aside>
+    </section>
+    <section class="slide" id="slide-5" aria-labelledby="title-5" data-title="What we can prove" hidden>
+      <div class="slide-top"><span class="eyebrow">05 / THE DELIVERABLE</span><span class="tag">REPRODUCIBLE TODAY · MEASURABLE NEXT</span></div>
+      <h1 id="title-5">A runnable workflow.<br>A clear next experiment.</h1>
+      <div class="closing-grid">
+        <article class="shipped"><h2>In the submission</h2><ul><li>Local console and six MCP tools</li><li>Live adapters and isolated sample data</li><li>Approval and failure-path tests</li><li>Setup, demo script, and portable bundle</li></ul><code>npm run hackathon</code></article>
+        <article><h2>Measure in the pilot</h2><dl><div><dt>Correctness</dt><dd>True findings and missed expected findings</dd></div><div><dt>Completion</dt><dd>Approved repairs verified in a sandbox</dd></div><div><dt>Time saved</dt><dd>Same task, manual versus assisted</dd></div></dl><p class="footnote">These are planned measurements, not claimed customer results.</p></article>
+      </div>
+      <p class="closing">“You saw the disagreement, the exact proposed repair,<br>and the result we could verify.”</p>
+      <aside class="speaker-note"><strong>Say · 30 seconds</strong> “We’ve packaged a repeatable demo and the tests that support its behavior. The next step is an authorized team pilot measuring accuracy and time to resolve drift. Live access and Jira workflow validators must be rehearsed on the presenting machine. AWS is optional delivery work after the local story succeeds.”</aside>
+    </section>
+  </main>
+  <footer class="deck-controls">
+    <div class="slide-position"><span id="counter" aria-live="polite">1 / 5</span><span id="slide-label">The problem</span></div>
+    <div class="controls"><span class="keyboard-hint">← → to navigate</span><button id="notes" type="button" aria-pressed="false">Speaker notes</button><button id="print" type="button">Print / PDF</button><button id="previous" type="button" aria-label="Previous slide">←</button><button id="next" type="button" aria-label="Next slide">→</button></div>
+  </footer>
+  <noscript><p class="noscript">JavaScript enables slide navigation. Use your browser’s Print command to view or export all five slides.</p></noscript>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.git
+.aws
+.codex
+.agents
+.env
+.env.*
+node_modules
+dist
+test
+tests
+docs
+*.log
+*.md
+google-apps-script

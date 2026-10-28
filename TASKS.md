@@ -1,3 +1,5 @@
+> **Historical planning document.** This predates the audited implementation and includes unshipped ideas and unverified claims. See [README](README.md), [current audit](docs/AUDIT.md), and [demo guide](docs/DEMO.md) for what actually exists.
+
 # ChhotaBheem — Task Breakdown
 
 ## Phase 0: Project Setup (Pre-Hack, ~1 hour)

@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile, appendFile, rename } from "fs/promises";
 import { join } from "path";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { PROJECTSYNC_HOME } from "../config.js";
 import { tryRun } from "../exec.js";
 
@@ -37,15 +37,15 @@ export async function readSyncLog(projectDir) {
 /** Append to sync log. */
 export async function appendSyncLog(projectDir, entry) {
   const logPath = join(projectDir, "sync-log.md");
-  let existing = "";
-  try { existing = await readFile(logPath, "utf-8"); } catch {}
   const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
-  await writeFile(logPath, existing + `\n## Scan: ${ts}\n\n${entry}\n`, "utf-8");
+  await appendFile(logPath, `\n## Event: ${ts}\n\n${entry}\n`, { encoding: "utf-8", mode: 0o600 });
 }
 
 /** Save last scan results for diffing. */
 export async function saveLastScan(projectDir, results) {
-  await writeFile(join(projectDir, "last-scan.json"), JSON.stringify(results, null, 2), "utf-8");
+  const temporary = join(projectDir, `.scan-${randomUUID()}.tmp`);
+  await writeFile(temporary, JSON.stringify(results, null, 2), { encoding: "utf-8", mode: 0o600 });
+  await rename(temporary, join(projectDir, "last-scan.json"));
 }
 
 export async function readLastScan(projectDir) {

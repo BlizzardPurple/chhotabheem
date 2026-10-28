@@ -9,7 +9,8 @@ export function run(cmd, args, opts = {}) {
       maxBuffer: 10 * 1024 * 1024,
       env: process.env,
     }, (err, stdout, stderr) => {
-      if (err) reject(new Error(`${cmd} ${args.join(" ")} failed: ${stderr || err.message}`));
+      // Arguments and stderr can contain issue bodies, job logs, or credentials.
+      if (err) reject(new Error(`${cmd} command failed (${err.code || "timeout"}). Check authentication, connectivity, and command configuration.`));
       else resolve(stdout.trim());
     });
   });
