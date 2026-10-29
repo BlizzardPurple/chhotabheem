@@ -21,6 +21,20 @@ async function cliToken(host) {
   });
 }
 
+/** Use glab CLI as API proxy — works with OAuth keyring tokens that don't work in direct HTTP. */
+async function glabApiProxy(path) {
+  return new Promise((resolve, reject) => {
+    execFile("glab", ["api", path], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) reject(new Error(`glab api ${path} failed: ${stderr || error.message}`));
+      else {
+        try { resolve(JSON.parse(stdout)); }
+        catch { resolve(stdout); }
+      }
+    });
+  });
+}
+
+
 /** Adapter boundary: inject fetch/auth in tests without contacting a provider. */
 export function createGitlabClient({ host = GITLAB_HOST, token = GITLAB_TOKEN,
   fetchImpl = globalThis.fetch, getToken = cliToken, timeoutMs = 15_000, maxPages = 20 } = {}) {
@@ -34,17 +48,30 @@ export function createGitlabClient({ host = GITLAB_HOST, token = GITLAB_TOKEN,
   const id = value => encodeURIComponent(String(value));
 
   async function request(path, init = {}) {
-    cachedToken ||= await getToken(root);
-    const response = await fetchImpl(`${root}/api/v4/${path}`, {
-      ...init, redirect: "error", signal: AbortSignal.timeout(timeoutMs),
-      headers: { Authorization: `Bearer ${cachedToken}`, "Content-Type": "application/json" },
-    });
-    if (!response.ok) {
-      const error = new Error(`GitLab request failed (${response.status}). Check access and retry.`);
-      error.status = response.status;
-      throw error;
+    // Try direct HTTP first, fall back to glab CLI proxy on 401
+    try {
+      cachedToken ||= await getToken(root);
+      const authHeader = cachedToken.startsWith("glpat-") ? { "PRIVATE-TOKEN": cachedToken } : { Authorization: `Bearer ${cachedToken}` };
+      const response = await fetchImpl(`${root}/api/v4/${path}`, {
+        ...init, redirect: "error", signal: AbortSignal.timeout(timeoutMs),
+        headers: { ...authHeader, "Content-Type": "application/json" },
+      });
+      if (response.status === 401) throw new Error("Token rejected");
+      if (!response.ok) {
+        const error = new Error(`GitLab request failed (${response.status}). Check access and retry.`);
+        error.status = response.status;
+        throw error;
+      }
+      return response;
+    } catch (e) {
+      // Fallback: use glab CLI as proxy
+      if (e.message === "Token rejected" || e.message?.includes("authentication")) {
+        const data = await glabApiProxy(path);
+        return { ok: true, status: 200, json: async () => data, text: async () => typeof data === "string" ? data : JSON.stringify(data),
+          headers: new Headers({ "content-type": "application/json" }) };
+      }
+      throw e;
     }
-    return response;
   }
   async function api(path, init) {
     const response = await request(path, init);
