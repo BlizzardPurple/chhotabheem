@@ -52,6 +52,7 @@ export function createScanner({ gitlab = gitlabClient, jira = jiraClient, gdrive
         for (const mr of recentMerged()) {
           const key = jiraClient.extractJiraKey(mr.source_branch) || jiraClient.extractJiraKey(mr.title) || jiraClient.extractJiraKey(mr.description);
           if (!key) continue;
+          if (jiraProject && !key.startsWith(jiraProject)) continue;
           try {
             if (!issues.has(key)) issues.set(key, await jira.viewIssue(key));
             const issue = issues.get(key);
