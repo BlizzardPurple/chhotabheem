@@ -2,7 +2,7 @@
 
 # ProjectSync — Cross-Tool Mismatch Detection & Resolution for Developer Workflows
 
-**Hack-AI-Thon '26 | Stream: AI Enablement | Team: Ctrl+Automate**
+**Hack-AI-Thon '26 | Stream: AI Enablement | Team: JainWin**
 
 > Your tools disagree with each other. MR merged but the ticket says "In Progress."
 > Pipeline failed but nobody filed a bug. Three MRs shipped with no release notes.

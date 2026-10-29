@@ -1,6 +1,6 @@
 # ProjectSync — hackathon submission
 
-**Team:** Ctrl+Automate
+**Team:** JainWin
 
 **Stream:** AI Enablement
 
