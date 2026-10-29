@@ -193,23 +193,42 @@ document.getElementById("jtm-go")?.addEventListener("click", async () => {
   } catch (e) { el.innerHTML = `<p class="notice error">${e.message}</p>`; }
 });
 
-// ═══ Sync Log tool ═══
+// ═══ Activity Feed (Sync Log) ═══
 document.getElementById("sl-go")?.addEventListener("click", async () => {
   const project = document.getElementById("sl-project").value.trim();
   if (!project) return;
   const el = document.getElementById("sl-result");
-  el.innerHTML = "<p class='hint'>Loading notebook...</p>";
+  el.innerHTML = "<p class='hint'>Loading activity feed...</p>";
   try {
-    const events = await api(`/api/events?project=${encodeURIComponent(project)}`);
-    let html = `<div class="table-wrap"><table class="sync-table">
-      <thead><tr><th>Time</th><th>Type</th><th>Details</th></tr></thead><tbody>`;
-    events.slice().reverse().forEach(ev => {
-      html += `<tr><td><time>${new Date(ev.at).toLocaleString()}</time></td>
-        <td><span class="source-badge">${ev.type?.replaceAll("_", " ")}</span></td>
-        <td>${ev.message || ev.finding || `${ev.findings ?? ""} findings`}</td></tr>`;
+    const data = await api(`/api/activity?project=${encodeURIComponent(project)}`);
+    if (!data.activity?.length) {
+      el.innerHTML = `<div class="empty">No activity in the last 24 hours for this project.</div>`;
+      return;
+    }
+    let html = `<p class="hint">${data.count} events in the last 24 hours · ${data.project}</p>`;
+    html += `<div class="activity-feed">`;
+    data.activity.forEach(ev => {
+      const time = new Date(ev.time);
+      const ago = Math.floor((Date.now() - time.getTime()) / 60000);
+      const agoText = ago < 60 ? `${ago}m ago` : ago < 1440 ? `${Math.floor(ago/60)}h ago` : `${Math.floor(ago/1440)}d ago`;
+      const sourceClass = ev.source === "gitlab" ? "gitlab" : ev.source === "jira" ? "jira" : "drive";
+      html += `<div class="activity-item">
+        <div class="activity-icon">${ev.icon}</div>
+        <div class="activity-body">
+          <div class="activity-header">
+            <strong>${ev.title}</strong>
+            <span class="activity-time">${agoText}</span>
+          </div>
+          <div class="activity-detail">${ev.detail}</div>
+          <div class="activity-meta">
+            <span class="source-badge ${sourceClass}">${sourceClass === 'gitlab' ? 'GitLab' : sourceClass === 'jira' ? 'JIRA' : 'Drive'}</span>
+            <span class="activity-author">by ${ev.author}</span>
+            ${ev.url ? `<a href="${ev.url}" target="_blank" rel="noopener" class="activity-link">View ↗</a>` : ''}
+          </div>
+        </div>
+      </div>`;
     });
-    if (!events.length) html += `<tr><td colspan="3" class="empty">No activity yet. Run a scan first.</td></tr>`;
-    html += `</tbody></table></div>`;
+    html += `</div>`;
     el.innerHTML = html;
   } catch (e) { el.innerHTML = `<p class="notice error">${e.message}</p>`; }
 });

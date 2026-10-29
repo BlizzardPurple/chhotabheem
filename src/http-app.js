@@ -25,6 +25,60 @@ export function createHttpApp({ runtimeFactory = createRuntime, publicDemo = pro
       if (publicDemo && app.mode !== "demo") return json({ error: "Public mode requires synthetic data." }, 503);
       if (request.method === "GET" && url.pathname === "/api/config") return json({ mode: app.mode, project: app.project, readOnly: publicDemo });
       if (request.method === "GET" && url.pathname === "/api/events") return json(app.workflow.getEvents(url.searchParams.get("project")));
+      if (request.method === "GET" && url.pathname === "/api/activity") {
+        const project = url.searchParams.get("project");
+        if (!project) return json({ error: "Provide a project parameter." }, 400);
+        try {
+          const { createGitlabClient } = await import("./clients/gitlab.js");
+          const gl = createGitlabClient();
+          const proj = await gl.getProject(project);
+          const pid = proj.id;
+          const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          
+          const [mergedMRs, openMRs, pipelines, events] = await Promise.all([
+            gl.listMRs(pid, { state: "merged", order_by: "updated_at", sort: "desc", per_page: 10 }).catch(() => []),
+            gl.listMRs(pid, { state: "opened", order_by: "updated_at", sort: "desc", per_page: 10 }).catch(() => []),
+            gl.listPipelines(pid, { per_page: 10 }).catch(() => []),
+            gl.listEvents ? gl.listEvents(pid, { per_page: 20 }).catch(() => []) : Promise.resolve([]),
+          ]);
+
+          const activity = [];
+          const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+
+          mergedMRs.filter(mr => new Date(mr.merged_at).getTime() > cutoff).forEach(mr => {
+            activity.push({ type: "merged", icon: "✅", time: mr.merged_at,
+              title: `MR !${mr.iid} merged`, detail: mr.title, author: mr.author?.name || "unknown",
+              url: mr.web_url, source: "gitlab" });
+          });
+
+          openMRs.filter(mr => new Date(mr.updated_at).getTime() > cutoff).forEach(mr => {
+            const age = Math.floor((Date.now() - new Date(mr.created_at).getTime()) / 86400000);
+            if (new Date(mr.created_at).getTime() > cutoff) {
+              activity.push({ type: "opened", icon: "🆕", time: mr.created_at,
+                title: `MR !${mr.iid} opened`, detail: mr.title, author: mr.author?.name || "unknown",
+                url: mr.web_url, source: "gitlab" });
+            } else if (mr.user_notes_count > 0) {
+              activity.push({ type: "reviewed", icon: "💬", time: mr.updated_at,
+                title: `MR !${mr.iid} got activity`, detail: `${mr.title} (${mr.user_notes_count} comments, ${age}d old)`,
+                author: (mr.reviewers || []).map(r => r.name).join(", ") || "unknown",
+                url: mr.web_url, source: "gitlab" });
+            }
+          });
+
+          pipelines.filter(p => new Date(p.created_at).getTime() > cutoff).forEach(p => {
+            const icon = p.status === "success" ? "🟢" : p.status === "failed" ? "🔴" : "🟡";
+            activity.push({ type: `pipeline_${p.status}`, icon, time: p.created_at,
+              title: `Pipeline #${p.id} ${p.status}`, detail: `Branch: ${p.ref}`,
+              author: p.source || "push", url: p.web_url, source: "gitlab" });
+          });
+
+          activity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+          return json({ project: proj.path_with_namespace, period: "24h", count: activity.length, activity });
+        } catch (e) {
+          return json({ error: e.message }, 400);
+        }
+      }
       if (request.method !== "POST") return json({ error: "Route not found." }, 404);
       const origin = request.headers.get("origin");
       if (origin && origin !== url.origin) return json({ error: "Cross-origin requests are not allowed." }, 403);

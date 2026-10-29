@@ -48,3 +48,20 @@
 .filter-group select{padding:6px 10px;border:1px solid var(--line);border-radius:5px;font-size:12px;background:#f7f9f6;color:#273e32;min-width:110px;cursor:pointer}
 .filter-group select:focus{border-color:#3c9d7e;outline:none}
 .filter-count{font-size:11px;color:#7a8a7d;padding:6px 0;align-self:center}
+
+
+/* ═══ Activity Feed ═══ */
+.activity-feed{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
+.activity-item{display:flex;gap:14px;padding:16px 20px;border-bottom:1px solid #eef2ec;transition:background .1s}
+.activity-item:last-child{border-bottom:none}
+.activity-item:hover{background:#f9fbf7}
+.activity-icon{font-size:20px;flex-shrink:0;width:32px;height:32px;display:grid;place-items:center}
+.activity-body{flex:1;min-width:0}
+.activity-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.activity-header strong{font-size:13px;color:#1a2e1e}
+.activity-time{font-size:10px;color:#93a08e;white-space:nowrap}
+.activity-detail{font-size:12px;color:#5a6e58;margin:4px 0;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.activity-meta{display:flex;align-items:center;gap:10px;margin-top:6px}
+.activity-author{font-size:10px;color:#7a8a7d}
+.activity-link{font-size:10px;color:var(--green);text-decoration:none;font-weight:600}
+.activity-link:hover{text-decoration:underline}
