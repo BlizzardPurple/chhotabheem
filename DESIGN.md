@@ -107,12 +107,12 @@ For pre-hack: skip those AI-dependent tools and build everything else. Kiro's mo
   "mcpServers": {
     "chhotabheem": {
       "command": "npx",
-      "args": ["tsx", "/Users/gajain2402/Nrepos/chhotabheem/src/server.ts"],
+      "args": ["tsx", "/path/to/project-sync/src/server.ts"],
       "env": {
         "GITLAB_TOKEN": "${GITLAB_TOKEN}",         // from glab auth
         "GITLAB_HOST": "https://gitlab.com",
         "CHHOTABHEEM_TEST_MODE": "true",
-        "CHHOTABHEEM_CONFIG": "/Users/gajain2402/Nrepos/.chhotabheem"
+        "CHHOTABHEEM_CONFIG": "~/.projectsync"
       }
     }
   }
